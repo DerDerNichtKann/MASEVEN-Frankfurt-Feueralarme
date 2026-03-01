@@ -16,7 +16,10 @@ export const metadata: Metadata = {
   title: "MASEVEN Tracker | Feueralarm Statistik",
   description: "Der inoffizielle Feueralarm-Tracker für das MASEVEN Frankfurt. Checke aktuelle Alarme, Statistiken und Durchschnittswerte.",
   keywords: ["MASEVEN", "Frankfurt", "Feueralarm", "Tracker", "Statistik", "Hotel", "Alarm", "Maseven brennt"],
-  authors: [{ name: "Dein Name oder Nickname" }],
+  authors: [{ name: "Dein Name" }],
+  verification: {
+    google: "google-site-verification: googlee8f87a3fc44af544.html",
+  },
 };
 
 export default function RootLayout({
