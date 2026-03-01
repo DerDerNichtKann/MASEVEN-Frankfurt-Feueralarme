@@ -13,8 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MASEVEN Tracker",
-  description: "Der inoffizielle Feueralarm-Tracker für das MASEVEN",
+  title: "MASEVEN Tracker | Feueralarm Statistik",
+  description: "Der inoffizielle Feueralarm-Tracker für das MASEVEN Frankfurt. Checke aktuelle Alarme, Statistiken und Durchschnittswerte.",
+  keywords: ["MASEVEN", "Frankfurt", "Feueralarm", "Tracker", "Statistik", "Hotel", "Alarm", "Maseven brennt"],
+  authors: [{ name: "Dein Name oder Nickname" }],
 };
 
 export default function RootLayout({
