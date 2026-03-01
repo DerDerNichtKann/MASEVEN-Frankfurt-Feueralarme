@@ -58,7 +58,7 @@ export default function Home() {
         alert("🔥 Neuer Feueralarm eingetragen!");
       }
     } catch (error) {
-      console.error("Fehler:", error);
+      console.error(error);
       alert("Fehler beim Speichern. Firestore-Regeln im Testmodus?");
     }
     setIsSubmitting(false);
@@ -93,13 +93,24 @@ export default function Home() {
 
   const getMostFrequentHour = () => {
     if (filteredAlarms.length === 0) return "-";
-    const hoursCount: Record<number, number> = {};
+    const timeCount: Record<string, number> = {};
+    
     filteredAlarms.forEach(a => {
-      const hour = a.timestamp.getHours();
-      hoursCount[hour] = (hoursCount[hour] || 0) + 1;
+      const h = a.timestamp.getHours();
+      const m = a.timestamp.getMinutes();
+      let roundedM = Math.round(m / 15) * 15;
+      let finalH = h;
+      
+      if (roundedM === 60) {
+        finalH = (h + 1) % 24;
+        roundedM = 0;
+      }
+      
+      const timeKey = `${finalH.toString().padStart(2, '0')}:${roundedM.toString().padStart(2, '0')} Uhr`;
+      timeCount[timeKey] = (timeCount[timeKey] || 0) + 1;
     });
-    const maxHour = Object.keys(hoursCount).reduce((a, b) => hoursCount[a as any] > hoursCount[b as any] ? a : b);
-    return `${maxHour}:00 Uhr`;
+    
+    return Object.keys(timeCount).reduce((a, b) => timeCount[a] > timeCount[b] ? a : b);
   };
 
   const getAverageStats = () => {
