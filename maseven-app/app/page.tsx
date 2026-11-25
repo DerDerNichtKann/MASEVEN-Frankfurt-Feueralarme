@@ -6,13 +6,38 @@ import { db } from "../firebase";
 import { Flame, Clock, Activity, CalendarDays, BarChart3, PlusCircle, Filter, Calculator } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
+type Phase = { id: string; label: string; start: Date; end: Date };
+
+// Getrackte Phasen – neue Phase einfach hier eintragen (Monat ist 0-basiert: 10 = November)
+const PHASES: Phase[] = [
+  { id: "period2", label: "15.11. - 18.12.26", start: new Date(2026, 10, 15), end: new Date(2026, 11, 18) },
+  { id: "period1", label: "22.02 - 27.03.26", start: new Date(2026, 1, 22), end: new Date(2026, 2, 27) },
+];
+
+const getDaysBetween = (d1: Date, d2: Date) => {
+  const date1 = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+  const date2 = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+  return Math.round((date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+};
+
+const isInPhase = (d: Date, p: Phase) =>
+  d >= p.start && d <= new Date(p.end.getFullYear(), p.end.getMonth(), p.end.getDate(), 23, 59, 59);
+
+// Vergangene Tage = vom Phasenstart bis heute (inkl. heute), höchstens bis zum Phasenende
+const getPhaseDays = (p: Phase, now: Date) => {
+  const totalDays = getDaysBetween(p.start, p.end);
+  if (now < p.start) return { passedDays: 0, totalDays };
+  const effectiveEnd = now < p.end ? now : p.end;
+  return { passedDays: getDaysBetween(p.start, effectiveEnd), totalDays };
+};
+
 export default function Home() {
   const [alarms, setAlarms] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [manualDate, setManualDate] = useState("");
   const [manualTime, setManualTime] = useState("");
   const [mounted, setMounted] = useState(false);
-  const [timeframe, setTimeframe] = useState("period1");
+  const [timeframe, setTimeframe] = useState("period2");
 
   useEffect(() => {
     setMounted(true);
@@ -80,11 +105,8 @@ export default function Home() {
       if (timeframe === "day") return d.toDateString() === now.toDateString();
       if (timeframe === "week") return d >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) && d <= now;
       if (timeframe === "month") return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-      if (timeframe === "period1") {
-        const start = new Date("2026-02-22T00:00:00");
-        const end = new Date("2026-03-27T23:59:59");
-        return d >= start && d <= end;
-      }
+      const phase = PHASES.find(p => p.id === timeframe);
+      if (phase) return isInPhase(d, phase);
       return true;
     });
   };
@@ -118,11 +140,7 @@ export default function Home() {
     
     const now = new Date();
     
-    const getDaysBetween = (d1: Date, d2: Date) => {
-      const date1 = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
-      const date2 = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
-      return Math.round((date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    };
+    const phase = PHASES.find(p => p.id === timeframe);
 
     let passedDays = 1;
     let totalDays = 1;
@@ -134,13 +152,9 @@ export default function Home() {
     } else if (timeframe === "month") {
       passedDays = now.getDate();
       totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    } else if (timeframe === "period1") {
-      const start = new Date(2026, 1, 22);
-      const end = new Date(2026, 2, 27);
-      const effectiveEnd = now < end ? now : end;
-      
-      passedDays = getDaysBetween(start, effectiveEnd);
-      totalDays = getDaysBetween(start, end);
+    } else if (phase) {
+      ({ passedDays, totalDays } = getPhaseDays(phase, now));
+      passedDays = Math.max(passedDays, 1);
     } else if (timeframe === "all") {
       const earliest = alarms.reduce((min, a) => a.timestamp < min ? a.timestamp : min, alarms[0].timestamp);
       passedDays = getDaysBetween(earliest, now);
@@ -257,9 +271,11 @@ export default function Home() {
             <span className="font-medium">Zeitraum:</span>
           </div>
           <div className="flex flex-wrap gap-2 w-full">
-            <button onClick={() => setTimeframe("period1")} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${timeframe === "period1" ? "bg-red-600 text-white shadow-lg" : "bg-neutral-950 text-neutral-400 hover:bg-neutral-800"}`}>
-              22.02 - 27.03.26
-            </button>
+            {PHASES.map(p => (
+              <button key={p.id} onClick={() => setTimeframe(p.id)} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${timeframe === p.id ? "bg-red-600 text-white shadow-lg" : "bg-neutral-950 text-neutral-400 hover:bg-neutral-800"}`}>
+                {p.label}
+              </button>
+            ))}
             <button onClick={() => setTimeframe("day")} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${timeframe === "day" ? "bg-red-600 text-white shadow-lg" : "bg-neutral-950 text-neutral-400 hover:bg-neutral-800"}`}>
               Heute
             </button>
@@ -301,6 +317,51 @@ export default function Home() {
           </div>
 
         </div>
+
+        <section className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800 p-6 rounded-3xl">
+          <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-white">
+            <CalendarDays className="w-5 h-5 text-red-500" />
+            Getrackte Phasen
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {PHASES.map(p => {
+              const now = new Date();
+              const { passedDays, totalDays } = getPhaseDays(p, now);
+              const count = alarms.filter(a => isInPhase(a.timestamp, p)).length;
+              const avg = passedDays > 0 ? count / passedDays : 0;
+              const status =
+                passedDays === 0 ? "Noch nicht gestartet"
+                : passedDays >= totalDays ? "Abgeschlossen"
+                : `Läuft – Tag ${passedDays} von ${totalDays}`;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setTimeframe(p.id)}
+                  className={`text-left p-5 rounded-2xl border transition-all ${timeframe === p.id ? "border-red-600 bg-red-600/10" : "border-neutral-800 bg-neutral-950/50 hover:border-neutral-700"}`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="font-bold text-white">{p.label}</span>
+                    <span className="text-xs text-neutral-400 bg-neutral-900 px-2.5 py-1 rounded-full border border-neutral-800">{status}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <div className="text-xs text-neutral-500">Alarme</div>
+                      <div className="text-2xl font-black text-white">{count}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-neutral-500">Ø pro Tag</div>
+                      <div className="text-2xl font-black text-red-500">{avg.toFixed(1)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-neutral-500">Vergangene Tage</div>
+                      <div className="text-2xl font-black text-white">{passedDays}<span className="text-sm text-neutral-500 font-medium"> / {totalDays}</span></div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
