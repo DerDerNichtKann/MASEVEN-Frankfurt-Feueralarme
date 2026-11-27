@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, onSnapshot, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
-import { Flame, Clock, Activity, CalendarDays, BarChart3, PlusCircle, Filter, Calculator } from "lucide-react";
+import { Flame, Clock, Activity, CalendarDays, BarChart3, PlusCircle, Filter, Calculator, Euro, Info } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 type Phase = { id: string; label: string; start: Date; end: Date };
@@ -14,7 +14,18 @@ const PHASES: Phase[] = [
   { id: "period1", label: "22.02 - 27.03.26", start: new Date(2026, 1, 22), end: new Date(2026, 2, 27) },
 ];
 
-const getDaysBetween = (d1: Date, d2: Date) => {
+// Geschätzte Kosten pro Einsatz: ca. 30 Minuten = 2 Viertelstunden, abgerechnet pro Viertelstunde
+const QUARTER_HOURS = 2;
+const COST_ITEMS = [
+  { label: "Großes Löschfahrzeug", detail: "50 € pro Viertelstunde", formula: `${QUARTER_HOURS} × 50 €`, amount: QUARTER_HOURS * 50 },
+  { label: "Einsatzkräfte", detail: "5 Personen, je 25 € pro Viertelstunde", formula: `5 × ${QUARTER_HOURS} × 25 €`, amount: 5 * QUARTER_HOURS * 25 },
+];
+const COST_PER_ALARM = COST_ITEMS.reduce((sum, i) => sum + i.amount, 0);
+
+const formatEuro = (v: number) =>
+  v.toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
+const getDaysBetween =(d1: Date, d2: Date) => {
   const date1 = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
   const date2 = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
   return Math.round((date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -317,6 +328,56 @@ export default function Home() {
           </div>
 
         </div>
+
+        <section className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800 p-6 rounded-3xl relative overflow-hidden">
+          <Euro className="absolute top-4 right-4 text-neutral-800/50 w-16 h-16 -rotate-12" />
+          <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-white relative z-10">
+            <Euro className="w-5 h-5 text-red-500" />
+            Kostenrechner
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+            <div className="flex flex-col justify-center items-center p-5 rounded-2xl bg-neutral-950/50 border border-neutral-800">
+              <div className="text-neutral-400 text-sm font-medium mb-2">Kosten im Zeitraum</div>
+              <div className="text-4xl md:text-5xl font-black text-red-500">{formatEuro(filteredAlarms.length * COST_PER_ALARM)}</div>
+              <div className="mt-3 text-xs text-neutral-500 font-medium">
+                {filteredAlarms.length} {filteredAlarms.length === 1 ? "Einsatz" : "Einsätze"} × {formatEuro(COST_PER_ALARM)}
+              </div>
+              {typeof stats.projection === "number" && timeframe !== "day" && (
+                <div className="mt-3 text-xs text-neutral-500 font-medium bg-neutral-900 px-3 py-1.5 rounded-full border border-neutral-800">
+                  Hochrechnung: <span className="text-white">{formatEuro(stats.projection * COST_PER_ALARM)}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="md:col-span-2 p-5 rounded-2xl bg-neutral-950/50 border border-neutral-800">
+              <div className="flex items-center gap-2 text-sm font-medium text-neutral-400 mb-4">
+                <Info className="w-4 h-4 text-red-500" />
+                So setzen sich die Kosten eines Einsatzes zusammen (ca. 30 Minuten = 2 Viertelstunden, abgerechnet pro Viertelstunde)
+              </div>
+              <div className="space-y-2">
+                {COST_ITEMS.map(item => (
+                  <div key={item.label} className="flex items-center justify-between gap-4 py-2 border-b border-neutral-800/70">
+                    <div>
+                      <div className="text-white font-semibold text-sm">{item.label}</div>
+                      <div className="text-neutral-500 text-xs">{item.detail}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-white font-bold tabular-nums">{formatEuro(item.amount)}</div>
+                      <div className="text-neutral-500 text-xs font-mono">{item.formula}</div>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between pt-2">
+                  <div className="text-white font-bold">Pro Einsatz (geschätzt)</div>
+                  <div className="text-red-500 font-black text-xl tabular-nums">≈ {formatEuro(COST_PER_ALARM)}</div>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-neutral-500">
+                Grobe Schätzung – die tatsächlichen Kosten können je nach Einsatzdauer und Besetzung abweichen.
+              </p>
+            </div>
+          </div>
+        </section>
 
         <section className="bg-neutral-900/50 backdrop-blur-md border border-neutral-800 p-6 rounded-3xl">
           <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-white">
